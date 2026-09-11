@@ -1,6 +1,36 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 
 export default function Home() {
+  const [name, setName] = useState("");
+  const [participants, setParticipants] = useState<
+    { id: string; name: string }[]
+  >([]);
+  function handleAddParticipant() {
+    const trimmedName = name.trim();
+
+    if (trimmedName === "") {
+      setNameError("参加者の名前を入力してください");
+      return;
+    }
+    setNameError("");
+
+    const participant = {
+      id: crypto.randomUUID(),
+      name: trimmedName,
+    };
+
+    setParticipants([...participants, participant]);
+    setName("");
+  }
+  const [nameError, setNameError] = useState("");
+  function handleRemoveParticipant(id: string) {
+    setParticipants(
+      participants.filter((participant) => participant.id !== id)
+    );
+  }
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
@@ -16,6 +46,48 @@ export default function Home() {
           <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
             旅行の割り勘アプリ
           </h1>
+          <section>
+            <h2>参加者</h2>
+
+            <label htmlFor="participant-name">名前</label>
+            <input
+              id="participant-name"
+              type="text"
+              placeholder="例：田中さん"
+              className="border rounded px-3 py-2"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+
+
+            <button
+              type="button"
+              onClick={handleAddParticipant}
+              className="bg-blue-500 text-white rounded px-4 py-2"
+            >
+              追加
+            </button>
+            {nameError && (
+              <p role="alert" className="text-red-600">
+                {nameError}
+              </p>
+            )}
+            <ul>
+              {participants.map((participant) => (
+                <li key={participant.id} className="flex items-center gap-3">
+                  <span>{participant.name}</span>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveParticipant(participant.id)}
+                    className="text-red-600"
+                  >
+                    削除
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
           <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
             Looking for a starting point or more instructions? Head over to{" "}
             <a
