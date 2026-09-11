@@ -27,9 +27,66 @@ export default function Home() {
   }
   const [nameError, setNameError] = useState("");
   function handleRemoveParticipant(id: string) {
+    if (payments.some((payment) => payment.payerId === id)) {
+      setParticipantError(
+        "この参加者には支払い記録があります。先に支払い記録を削除してください"
+      );
+      return;
+    }
+
     setParticipants(
       participants.filter((participant) => participant.id !== id)
     );
+
+    if (payerId === id) {
+      setPayerId("");
+    }
+
+    setParticipantError("");
+  }
+  const [payerId, setPayerId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [payments, setPayments] = useState<
+    { id: string; payerId: string; amount: number; purpose: string }[]
+  >([]);
+
+  const [paymentError, setPaymentError] = useState("");
+  function handleAddPayment() {
+    const numericAmount = Number(amount);
+    const trimmedPurpose = purpose.trim();
+
+    if (!participants.some((participant) => participant.id === payerId)) {
+      setPaymentError("支払った人を選択してください");
+      return;
+    }
+
+    if (!Number.isSafeInteger(numericAmount) || numericAmount <= 0) {
+      setPaymentError("金額は1円以上の扱える範囲の整数で入力してください");
+      return;
+    }
+
+    if (trimmedPurpose === "") {
+      setPaymentError("用途を入力してください");
+      return;
+    }
+
+    const payment = {
+      id: crypto.randomUUID(),
+      payerId,
+      amount: numericAmount,
+      purpose: trimmedPurpose,
+    };
+
+    setPayments([...payments, payment]);
+    setPaymentError("");
+    setAmount("");
+    setPurpose("");
+  }
+  const [participantError, setParticipantError] = useState("");
+  function handleRemovePayment(id: string) {
+    setPayments(payments.filter((payment) => payment.id !== id));
+    setParticipantError("");
   }
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
@@ -80,6 +137,91 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => handleRemoveParticipant(participant.id)}
+                    className="text-red-600"
+                  >
+                    削除
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {participantError && (
+              <p role="alert" className="text-red-600">
+                {participantError}
+              </p>
+            )}
+          </section>
+          <section>
+            <h2>支払いの記録</h2>
+
+            <div>
+              <label htmlFor="payer">支払った人</label>
+              <select 
+                id="payer" 
+                className="border rounded px-3 py-2" 
+                value={payerId}
+                onChange={(event) => setPayerId(event.target.value)}
+                >
+                <option value="">選択してください</option>
+                {participants.map((participant) => (
+                  <option key={participant.id} value={participant.id}>
+                    {participant.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="amount">金額</label>
+              <input
+                id="amount"
+                type="number"
+                min="1"
+                step="1"
+                className="border rounded px-3 py-2"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+              />
+              <span>円</span>
+            </div>
+
+            <div>
+              <label htmlFor="purpose">用途</label>
+              <input
+                id="purpose"
+                type="text"
+                placeholder="例：宿泊費"
+                className="border rounded px-3 py-2"
+                value={purpose}
+                onChange={(event) => setPurpose(event.target.value)}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddPayment}
+              className="bg-blue-500 text-white rounded px-4 py-2"
+            >
+              支払いを追加
+            </button>
+            {paymentError && (
+              <p role="alert" className="text-red-600">
+                {paymentError}
+              </p>
+            )}
+
+            <ul>
+              {payments.map((payment) => (
+                <li key={payment.id} className="flex items-center gap-3">
+                  <span>
+                    {participants.find(
+                      (participant) => participant.id === payment.payerId
+                    )?.name}
+                    ：{payment.amount.toLocaleString()}円／{payment.purpose}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePayment(payment.id)}
                     className="text-red-600"
                   >
                     削除
