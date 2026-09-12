@@ -1,36 +1,133 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 旅行の割り勘アプリ
 
-## Getting Started
+旅行の参加者と立て替えた支払いを登録し、総費用を全員で均等に負担するためのアプリです。「誰が誰にいくら払うか」を日本円で表示します。
 
-First, run the development server:
+## 実装した機能
+
+- 参加者の追加・削除
+- 支払った人・金額・用途の登録と、支払い記録の削除
+- 総費用、各参加者の負担額、参加者間の受け渡し額の自動計算
+- 日本円（JPY）・米ドル（USD）・ユーロ（EUR）での支払い
+- 外貨の円換算と、元の金額・通貨・使用レート・レート日時の表示
+- 未入力や不正な金額、通信失敗時のエラー表示
+
+**APIキーなしでも、日本円の割り勘は利用できます。外貨の登録にはexchangerate.hostのAPIキーが必要です。**
+
+## 使用技術
+
+- Next.js 16.3.4（App Router）
+- React 19.2.8
+- TypeScript 5
+- Tailwind CSS 4
+- Docker（Node.js 24の公式イメージを使用）
+- 為替API：[exchangerate.host](https://exchangerate.host/)
+
+## 起動方法
+
+### リポジトリの取得
+
+Gitが使える環境で実行します。
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/masaki16788/warikan.git
+cd warikan
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Dockerで起動する
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Docker Desktopなど、Dockerを実行できる環境を起動しておきます。ホスト側へのNode.jsのインストールは不要です。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+docker build -t warikan .
+docker run --rm -p 127.0.0.1:3001:3000 warikan
+```
 
-## Learn More
+[http://localhost:3001](http://localhost:3001)を開きます。このコマンドは、日本円の機能をAPIキーなしで確認する場合に使えます。
 
-To learn more about Next.js, take a look at the following resources:
+外貨も利用する場合は、次の「APIキーの設定」を済ませてから、起動コマンドを以下に変更します。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+docker run --rm --env-file .env.local -p 127.0.0.1:3001:3000 warikan
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### APIキーの設定（外貨を利用する場合）
 
-## Deploy on Vercel
+1. [exchangerate.host](https://exchangerate.host/)でAPIキーを取得します。
+2. `package.json`と同じ階層に`.env.local`を作成し、次の内容を記入します。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```dotenv
+EXCHANGERATE_API_KEY=取得したAPIキー
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`.env.local`はGitとDockerのコピー対象から除外しており、リポジトリには含めません。
+
+Dockerでは`--env-file .env.local`で起動時に渡します。設定を変更した場合は、コンテナを停止して同じ起動コマンドで作り直してください。
+
+## 使い方
+
+1. 旅行の参加者を登録します。
+2. 支払った人・通貨・金額・用途を入力し、「支払いを追加」を押します。
+3. 精算結果が自動表示されます。その下で総費用と各人の負担額も確認できます。
+
+誤った支払いは削除して入力し直します。支払い記録がある参加者は削除できないため、先にその人の支払い記録を削除してください。
+
+同姓同名の参加者も登録できます。画面上で取り違えないよう、必要に応じて名前に補足を付けて登録してください。
+
+## 精算・入力のルール
+
+### 全員で総費用を均等に負担
+
+すべての支払いを参加者全員で均等に負担します。参加者を追加・削除した場合は、現在の参加者全員で計算し直します。
+
+総費用を人数で割り、小数部分を切り捨てた金額を基本負担額とします。残った端数は、参加者の登録順に1円ずつ配分します。例えば1,000円を3人で分ける場合は、334円・333円・333円です。
+
+各人の「立て替え額 − 負担額」を求め、支払う人と受け取る人を登録順に組み合わせます。1回の受け渡しは両者の残額の小さい方とし、残額が0になった人から次の人へ進みます。
+
+### 金額・名前・用途
+
+- 日本円は1円以上の整数、米ドル・ユーロは0より大きく小数第2位までの金額を受け付けます。
+- 空欄、マイナス、0、桁数が条件に合わない金額は登録できません。
+- 入力金額、円換算額、合計額には上限を設けています。
+- 名前と用途は前後の空白を除き、空になった場合は登録できません。
+
+### 外貨の換算
+
+外貨の登録ごとに、サーバー側でexchangerate.hostから為替レートを取得します。日本円の登録や精算結果の更新だけではAPIを呼びません。
+
+USD基準の`USDJPY`と`USDEUR`を使用します。
+
+```text
+米ドル → 円：元の金額 × USDJPY
+ユーロ → 円：元の金額 × USDJPY ÷ USDEUR
+```
+
+支払いごとに円換算し、1円未満を四捨五入して合計します。0.5円未満の換算結果は0円になります。
+
+登録後はその支払いの換算額を固定します。使用するのは登録時にAPIから取得できるレートであり、実際の支払日時点のレートやカードの請求額を再現するものではありません。表示するレート日時はAPIが返した時点で、UTC表記です。
+
+通信中は入力・追加・削除を一時停止します。通信失敗や不正なレートの場合は登録せず、入力を残して再試行できるようにしています。
+
+## データの保存範囲
+
+**データはページを開いている間のみ保持され、再読み込みすると初期化されます。**
+
+## ファイル構成
+
+```text
+app/
+├── page.tsx                       # 共有する画面のデータ・追加削除処理・画面の組み立て
+├── layout.tsx                     # 共通レイアウト・ページ情報
+├── globals.css                    # 全体のスタイル
+├── components/
+│   ├── ParticipantSection.tsx     # 参加者の入力・一覧
+│   ├── PaymentSection.tsx         # 支払いの入力・一覧
+│   └── SettlementSection.tsx      # 精算結果・負担額の表示
+├── lib/
+│   ├── types.ts                   # 共通のデータ型
+│   ├── calculateSettlement.ts     # 均等割り・受け渡しの計算
+│   ├── convertToYen.ts            # レート取得・円換算
+│   └── money.ts                   # 金額の検証・丸め処理
+└── api/exchange-rates/route.ts    # サーバー側の為替APIへの窓口
+```
+
+参加者と支払いは複数の画面部品で使うため、共通の親で管理します。子には必要なデータと操作関数を渡し、精算の計算処理は表示から分離しています。
