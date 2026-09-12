@@ -3,11 +3,17 @@ export type Participant = {
   name: string;
 };
 
+export type Currency = "JPY" | "USD" | "EUR";
+
 export type Payment = {
   id: string;
   payerId: string;
   amount: number;
   purpose: string;
+  currency: Currency;
+  originalAmount: number;
+  exchangeRate: number;
+  rateTimestamp: number | null;
 };
 
 export type Balance = Participant & {

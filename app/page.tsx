@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import ParticipantSection from "./components/ParticipantSection";
 import PaymentSection from "./components/PaymentSection";
 import SettlementSection from "./components/SettlementSection";
+import { parsePaymentAmount } from "./lib/money";
+import { convertToYen } from "./lib/convertToYen";
 import { calculateSettlement } from "./lib/calculateSettlement";
-import type { Participant, Payment } from "./lib/types";
+import type { Currency, Participant, Payment } from "./lib/types";
+
 
 export default function Home() {
   const [name, setName] = useState("");
@@ -17,8 +20,13 @@ export default function Home() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentError, setPaymentError] = useState("");
   const [participantError, setParticipantError] = useState("");
+  const [currency, setCurrency] = useState<Currency>("JPY");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   function handleAddParticipant() {
+    if (submittingRef.current) return;
     const trimmedName = name.trim();
 
     if (trimmedName === "") {
@@ -36,6 +44,7 @@ export default function Home() {
     setName("");
   }
   function handleRemoveParticipant(id: string) {
+    if (submittingRef.current) return;
     if (payments.some((payment) => payment.payerId === id)) {
       setParticipantError(
         "この参加者には支払い記録があります。先に支払い記録を削除してください"
@@ -54,8 +63,9 @@ export default function Home() {
     setParticipantError("");
   }
 
-  function handleAddPayment() {
-    const numericAmount = Number(amount);
+  async function handleAddPayment() {
+    if (submittingRef.current) return;
+    let numericAmount: number;
     const trimmedPurpose = purpose.trim();
 
     if (!participants.some((participant) => participant.id === payerId)) {
@@ -63,8 +73,10 @@ export default function Home() {
       return;
     }
 
-    if (!Number.isSafeInteger(numericAmount) || numericAmount <= 0) {
-      setPaymentError("金額は1円以上の扱える範囲の整数で入力してください");
+    try {
+      numericAmount = parsePaymentAmount(amount, currency);
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : "金額が正しくありません");
       return;
     }
 
@@ -73,19 +85,42 @@ export default function Home() {
       return;
     }
 
-    const payment = {
-      id: crypto.randomUUID(),
-      payerId,
-      amount: numericAmount,
-      purpose: trimmedPurpose,
-    };
-
-    setPayments([...payments, payment]);
+    submittingRef.current = true;
+    setIsSubmitting(true);
     setPaymentError("");
-    setAmount("");
-    setPurpose("");
+
+    try {
+      const converted = await convertToYen(numericAmount, currency);
+      const total = payments.reduce((sum, payment) => sum + payment.amount, 0);
+
+      if (!Number.isSafeInteger(total + converted.amount)) {
+        throw new Error("合計金額が扱える範囲を超えています");
+      }
+
+      const payment: Payment = {
+        id: crypto.randomUUID(),
+        payerId,
+        purpose: trimmedPurpose,
+        currency,
+        originalAmount: numericAmount,
+        ...converted,
+      };
+
+      setPayments((current) => [...current, payment]);
+      setAmount("");
+      setPurpose("");
+    } catch (error) {
+      setPaymentError(
+        error instanceof Error ? error.message : "支払いを登録できませんでした"
+      );
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
   }
+
   function handleRemovePayment(id: string) {
+    if (submittingRef.current) return;
     setPayments(payments.filter((payment) => payment.id !== id));
     setParticipantError("");
   }
@@ -98,6 +133,7 @@ export default function Home() {
             旅行の割り勘アプリ
           </h1>
           <ParticipantSection
+            isSubmitting={isSubmitting}
             name={name}
             participants={participants}
             nameError={nameError}
@@ -107,6 +143,9 @@ export default function Home() {
             handleRemoveParticipant={handleRemoveParticipant}
           />
           <PaymentSection
+            isSubmitting={isSubmitting}
+            currency={currency}
+            setCurrency={setCurrency}
             participants={participants}
             payments={payments}
             payerId={payerId}

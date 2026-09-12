@@ -1,6 +1,7 @@
 import type { Participant } from "../lib/types";
 
 type Props = {
+  isSubmitting: boolean;
   name: string;
   participants: Participant[];
   nameError: string;
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export default function ParticipantSection({
+  isSubmitting,
   name,
   participants,
   nameError,
@@ -20,7 +22,8 @@ export default function ParticipantSection({
   handleRemoveParticipant,
 }: Props) {
   return (
-    <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-4 sm:p-6">
+    <section className="min-w-0 [overflow-wrap:anywhere] space-y-4 rounded-lg border border-zinc-200 bg-white p-4 sm:p-6">
+      <fieldset disabled={isSubmitting} className="min-w-0 space-y-4 disabled:opacity-60">
       <h2>参加者</h2>
 
       <label htmlFor="participant-name">名前</label>
@@ -28,7 +31,7 @@ export default function ParticipantSection({
         id="participant-name"
         type="text"
         placeholder="例：田中さん"
-        className="border rounded px-3 py-2"
+        className="block w-full min-w-0 max-w-full border rounded px-3 py-2"
         value={name}
         onChange={(event) => setName(event.target.value)}
       />
@@ -48,13 +51,13 @@ export default function ParticipantSection({
       )}
       <ul>
         {participants.map((participant) => (
-          <li key={participant.id} className="flex items-center gap-3">
-            <span>{participant.name}</span>
+          <li key={participant.id} className="flex items-start gap-3">
+            <span className="min-w-0 flex-1">{participant.name}</span>
 
             <button
               type="button"
               onClick={() => handleRemoveParticipant(participant.id)}
-              className="text-red-600"
+              className="shrink-0 whitespace-nowrap text-red-600"
             >
               削除
             </button>
@@ -66,6 +69,7 @@ export default function ParticipantSection({
           {participantError}
         </p>
       )}
+      </fieldset>
     </section>
   );
 }

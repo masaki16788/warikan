@@ -15,25 +15,7 @@ export default function SettlementSection({
 
   return (
     <>
-      <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-4 sm:p-6">
-        <h2>負担額</h2>
-        <p>総費用：{totalAmount.toLocaleString()}円</p>
-
-        <ul>
-          {balances.map((participant) => (
-            <li key={participant.id}>
-              {participant.name}：
-              負担額 {participant.share.toLocaleString()}円／
-              {participant.balance > 0
-                ? `${participant.balance.toLocaleString()}円受け取る`
-                : participant.balance < 0
-                  ? `${Math.abs(participant.balance).toLocaleString()}円支払う`
-                  : "精算不要"}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-4 sm:p-6">
+      <section className="min-w-0 [overflow-wrap:anywhere] space-y-4 rounded-lg border border-zinc-200 bg-white p-4 sm:p-6">
         <h2>精算結果</h2>
 
         {participantCount === 0 ? (
@@ -52,6 +34,24 @@ export default function SettlementSection({
             ))}
           </ul>
         )}
+      </section>
+      <section className="min-w-0 [overflow-wrap:anywhere] space-y-4 rounded-lg border border-zinc-200 bg-white p-4 sm:p-6">
+        <h2>負担額</h2>
+        <p>総費用：{totalAmount.toLocaleString()}円</p>
+
+        <ul>
+          {balances.map((participant) => (
+            <li key={participant.id}>
+              {participant.name}：
+              負担額 {participant.share.toLocaleString()}円／
+              {participant.balance > 0
+                ? `${participant.balance.toLocaleString()}円受け取る`
+                : participant.balance < 0
+                  ? `${Math.abs(participant.balance).toLocaleString()}円支払う`
+                  : "精算不要"}
+            </li>
+          ))}
+        </ul>
       </section>
     </>
   );
